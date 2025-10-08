@@ -77,7 +77,7 @@ def _initialize_config():
         _abspath = os.path.join(project_root, 'data')
         _location = 'https://nl2120.openearth.nl'
     
-    logger.info('paths assigned'_abspath, _location)
+    logger.info('paths assigned',_abspath, _location)
     
     # PostgreSQL connection - read from config file
     pg_user = config.get('database', 'PG_USER')
