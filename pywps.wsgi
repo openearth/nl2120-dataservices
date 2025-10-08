@@ -43,7 +43,6 @@ from pywps.app.Service import Service
 
 # Ultimate question
 from processes.ultimate_question import UltimateQuestion
-# from processes.wps_shoreline_getprofile import WpsShorelineGetprofile  WpsShorelineGetprofile()
 
 # TODO add the proces in the processes list
 processes = [
