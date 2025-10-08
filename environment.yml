@@ -10,6 +10,6 @@ dependencies:
   - python=3
   - sqlalchemy=2
   - pip:
-      - psycopg2-binary==2
-      - pywps==4
+      - psycopg2-binary>=2
+      - pywps>=4
 
