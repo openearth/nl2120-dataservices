@@ -49,7 +49,7 @@ from processes.wps_shoreline_getprofile import WpsShorelineGetprofile
 # TODO add the proces in the processes list
 processes = [
     UltimateQuestion(),
-    WpsShorelineGetprofile
+    WpsShorelineGetprofile(),
     #WPSMPDataIngestion(),
 ]
 
