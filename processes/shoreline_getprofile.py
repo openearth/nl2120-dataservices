@@ -62,7 +62,7 @@ def _initialize_config():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(script_dir)
     config_file = os.path.join(project_root, 'configuration.txt')
-    
+    logger.info('config_file',config_file) 
    
     config = configparser.ConfigParser()
     config.read(config_file, encoding='utf-8')
@@ -75,9 +75,9 @@ def _initialize_config():
 
     else:
         _abspath = os.path.join(project_root, 'data')
-        _location = 'https://shoreline-monitor.avi.directory.intra'
+        _location = 'https://nl2120.openearth.nl'
     
-
+    logger.info('paths assigned'_abspath, _location)
     
     # PostgreSQL connection - read from config file
     pg_user = config.get('database', 'PG_USER')
