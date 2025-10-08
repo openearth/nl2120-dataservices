@@ -43,14 +43,11 @@ from pywps.app.Service import Service
 
 # Ultimate question
 from processes.ultimate_question import UltimateQuestion
-#from processes.wps_mp_dataingestion import WPSMPDataIngestion
-from processes.wps_shoreline_getprofile import WpsShorelineGetprofile
+# from processes.wps_shoreline_getprofile import WpsShorelineGetprofile  WpsShorelineGetprofile()
 
 # TODO add the proces in the processes list
 processes = [
     UltimateQuestion(),
-    WpsShorelineGetprofile(),
-    #WPSMPDataIngestion(),
 ]
 
 # Description used in template
