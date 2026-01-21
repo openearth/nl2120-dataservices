@@ -1,15 +1,12 @@
 name: nl2120_wps
 channels:
   - conda-forge
-  - defaults
 dependencies:
-  - flask=3
-  - geoserver-rest=2
-  - pandas=2
-  - pip=24.0
-  - python=3
-  - sqlalchemy=2
+  - python=3.11
+  - flask
+  - pandas
+  - pip
+  - sqlalchemy
   - psycopg2-binary
-  - pip:
-      - pywps>=4
+  - pywps
 

@@ -42,11 +42,13 @@ from pywps.app.Service import Service
 # from flask_cors import CORS
 
 # Ultimate question
-from processes.ultimate_question import UltimateQuestion
+#from processes.ultimate_question import UltimateQuestion
+from processes.wps_get_locations import WpsGetLocations
 
 # TODO add the proces in the processes list
 processes = [
-    UltimateQuestion(),
+    #UltimateQuestion(),
+    WpsGetLocations()
 ]
 
 # Description used in template
