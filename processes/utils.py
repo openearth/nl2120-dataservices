@@ -27,7 +27,7 @@
 
 import configparser
 import time
-import datetime
+from datetime import datetime
 import json
 from pathlib import Path
 from sqlalchemy import select, func
@@ -83,7 +83,7 @@ def get_locations():
     return json.dumps(result)
 
 
-def get_data(peilfilterid,start_date,end_date):
+def get_data(peilfilterid,start_date,end_date,parameter='Grondwaterstand'):
     """Retrieves the data for specific peilfilter id
     Inputs:
         peilfilterid: Integer
@@ -92,16 +92,25 @@ def get_data(peilfilterid,start_date,end_date):
     Returns:
         json with datetime and stages
     """
+
+    strformat = '%Y-%m-%d' 
     if start_date == '':
         start_date = None
+    if not start_date:
+        start_date = '2025-01-01' # considered as start of the project
+    
     if end_date == '':
         end_date = None
+    if not end_date:
+        end_date = datetime.now().strftime(strformat)
 
+    sd = datetime.strptime(start_date, strformat)
+    ed = datetime.strptime(end_date, strformat)
     logger.info('startdate: ', start_date)
     engine = create_connection_db()
     with engine.connect() as connection:
         #query = select(func.gws.get_locations_geojson())
-        query = select(func.gws.get_peilfilter_data_json(peilfilterid,start_date,end_date))  # this yields list of locatie_id and peilfilter_id
+        query = select(func.timeseries.get_location_observations(peilfilterid,parameter,sd,ed))  # this yields list of locatie_id and peilfilter_id
         try:
             result = connection.execute(query).fetchone()[0]
         except Exception:
@@ -112,18 +121,19 @@ def get_data(peilfilterid,start_date,end_date):
 
 
 def test_get_data():
+    parameter='Grondwaterstand'
     dcttest={}
-    dcttest["t1"] = [530,None,None]
-    dcttest["t2"] = [530,'2016-09-12T08:00:00','2016-12-12T08:00:00']
-    dcttest["t3"] = [530,'2016-09-12T08:00:00',None]
-    dcttest["t4"] = [530,None,'2016-12-12T08:00:00']
+    dcttest["t1"] = ['HEG_01_W2404_01_SH',None,None]
+    dcttest["t2"] = ['HEG_01_W2404_01_SH','2025-09-12','2025-12-12']
+    dcttest["t3"] = ['HEG_01_W2404_01_SH','2025-09-12',None]
+    dcttest["t4"] = ['HEG_01_W2404_01_SH',None,'2025-12-12']
 
     for t in dcttest.keys():
         peilfilterid = dcttest[t][0]
         start_date = dcttest[t][1]
         end_date = dcttest[t][2]
         try:
-            result = get_data(peilfilterid,start_date,end_date)
+            result = get_data(peilfilterid,start_date,end_date,parameter)
         except Exception:
             result = 'no data found'
         finally:

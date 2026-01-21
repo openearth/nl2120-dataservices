@@ -44,11 +44,12 @@ from pywps.app.Service import Service
 # Ultimate question
 #from processes.ultimate_question import UltimateQuestion
 from processes.wps_get_locations import WpsGetLocations
+from processes.wps_get_peilfilter_data import WpsGetPeilfilterData
 
 # TODO add the proces in the processes list
 processes = [
     #UltimateQuestion(),
-    WpsGetLocations()
+    WpsGetLocations(), WpsGetPeilfilterData()
 ]
 
 # Description used in template
