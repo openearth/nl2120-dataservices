@@ -32,10 +32,11 @@
 # http://localhost:5000/wps?service=wps&request=Execute&version=2.0.0&Identifier=wps_get_peilfilter_data&datainputs=peilfilterinfo={"peilfilterid":"HEG_02_W2404_01_GW","start_date":"","end_date":"2025-12-31"}
 # http://localhost:5000/wps?service=wps&request=Execute&version=2.0.0&Identifier=wps_get_peilfilter_data&datainputs=peilfilterinfo={"peilfilterid":"HEG_02_W2404_01_GW","start_date":"2025-06-01","end_date":""}
 # https://nl2120.openearth.nl/wps?service=wps&request=Execute&version=2.0.0&Identifier=wps_get_peilfilter_data&datainputs=peilfilterinfo={"peilfilterid":436, "start_date":"2013-06-01","end_date":"2013-12-31"}
-# https://nl2120.openearth.nl/wps?service=wps&request=Execute&version=2.0.0&Identifier=wps_get_peilfilter_data&datainputs=peilfilterinfo={"peilfilterid":530, "start_date":"","end_date":""}
+# https://nl2120.openearth.nl/wps?service=wps&request=Execute&version=2.0.0&Identifier=wps_get_peilfilter_data&datainputs=peilfilterinfo={"peilfilterid":"HEG_02_W2404_01_GW","parameter":"Grondwaterstand","start_date":"","end_date":""}
 
 import json
 from pywps import Format
+from pywps.inout.formats import FORMATS  # Optional: use predefined formats
 from pywps.app import Process
 from pywps.inout.outputs import LiteralOutput
 from pywps.app.Common import Metadata
@@ -47,9 +48,28 @@ logger = logging.getLogger("PYWPS")
 
 class WpsGetPeilfilterData(Process):
     def __init__(self):
-        inputs = [ComplexInput('peilfilterinfo', 'Peilfilterinfo as peilfilterId, StartDate, EndDate and paramter',
-                         supported_formats=[Format('application/json')])
-        ]
+        # inputs = [ComplexInput('peilfilterinfo', 'Peilfilterinfo as peilfilterId, StartDate, EndDate and parameter',
+        #                  supported_formats=[Format('application/json')])
+        # ]
+        inputs = [
+            ComplexInput(
+                identifier='peilfilterinfo',
+                title='peilfilterid, parameter, start_date and end_date',
+                abstract='JSON object containing peilfilterid, parameter, start_date and end_date',
+                supported_formats=[
+                    Format(
+                        mime_type='application/json',
+                        schema='http://json-schema.org/draft-07/schema#',  # Optional but recommended
+                        encoding='UTF-8'
+                    )
+                ],
+                metadata=[
+                    Metadata('Input format specification', 'https://example.org/locationinfo-schema.json'),
+                    #Metadata('Coordinate System', 'EPSG:28992 (RD New - Dutch coordinate system)'),
+                    Metadata('Required fields', 'peilfilterid (string), parameter (string), start_date (string ISO 8601), end_date (string ISO 8601)')
+                ]
+            )
+        ]        
         outputs = [
             ComplexOutput(identifier="peilfilter_data", title="Peilfilter data", supported_formats=[Format('application/json')])
         ]
