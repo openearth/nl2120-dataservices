@@ -1,31 +1,60 @@
-create or replace function timeseries.gwslocations () returns setof json as 
-$$
-SELECT json_build_object(
-    'type', 'FeatureCollection', 
-    'features', json_agg(
-        json_build_object(
-            'type',       'Feature',
-            'geometry', ST_AsGeoJSON(geom)::json,
-            'properties', json_build_object(
-                -- list of fields
-                'filterid', filterid,
-				'filterdepth',filterdepth,
-				'name', name,
-				'shortname', shortname,
-				'description',description,
-                'x', x,
-                'y', y,
-				'z', z,
-				'epsgcode',epsgcode,
-				'altitude_msl',altitude_msl,
-				'tubetop', tubetop,
-				'tubebot', tubebot,
-				'cablelength',cablelength
-            )
-        )
-    )
+CREATE OR REPLACE FUNCTION timeseries.get_location_observations(
+  _location_name   text,
+  _parameter_name  text,
+  _date_start      timestamptz,
+  _date_end        timestamptz
 )
-FROM timeseries.location
-$$ language sql
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT jsonb_build_object(
+    'locationproperties', jsonb_build_object(
+      'locationid',   l.name,
+      'xcoord',       l.x,
+      'ycoord',       l.y,
+      'crs',          'EPSG:' || l.epsgcode::text,
+      'top_filter',   l.tubetop,
+      'bot_filter',   l.tubebot,
+      'cable_length', l.cablelength
+    ),
+    'parameterproperties', jsonb_build_object(
+      'parameter', p.name,
+      'unit',      u.unit
+    ),
+    'timeseries', COALESCE(
+      jsonb_agg(
+        jsonb_build_object(
+          'datetime', tsv.datetime,
+          'head',     tsv.scalarvalue
+        )
+        ORDER BY tsv.datetime
+      ),
+      '[]'::jsonb
+    )
+  )
+  FROM timeseries.location l
+  JOIN timeseries.timeseries sk
+    ON sk.locationkey = l.locationkey
+  JOIN timeseries.parameter p
+    ON p.parameterkey = sk.parameterkey
+  JOIN timeseries.unit u
+    ON u.unitkey = p.unitkey
+  LEFT JOIN timeseries.timeseriesvaluesandflags tsv
+    ON tsv.timeserieskey = sk.timeserieskey
+    AND tsv.datetime >= _date_start
+    AND tsv.datetime <= _date_end
+  WHERE p.name = _parameter_name
+    AND l.name = _location_name
+  GROUP BY
+    l.name, p.name, l.x, l.y, l.epsgcode, l.tubetop, l.tubebot, l.cablelength, u.unit
+  LIMIT 1;
+$$;
 
---select * from timeseries.gwslocations();
+-- for testing
+-- SELECT timeseries.get_location_parameter_data(
+--   'HEG_01_W2404_01_SH',
+--   'Grondwaterstand',
+--   TIMESTAMPTZ '2024-01-01 00:00+01',
+--   TIMESTAMPTZ '2025-12-31 23:59:59+01'
+-- );

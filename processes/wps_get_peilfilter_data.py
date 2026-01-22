@@ -28,7 +28,7 @@
 
 # test and production requests
 # http://localhost:5000/wps?service=wps&request=Execute&version=2.0.0&Identifier=wps_get_peilfilter_data&datainputs=peilfilterinfo={"peilfilterid":"HEG_02_W2404_01_GW","start_date":"","end_date":"","parameter":"Grondwaterstand"}
-# http://localhost:5000/wps?service=wps&request=Execute&version=2.0.0&Identifier=wps_get_peilfilter_data&datainputs=peilfilterinfo={"peilfilterid":"HEG_02_W2404_01_GW","start_date":"2025-06-01","end_date":"2025-12-31"}
+# http://localhost:5000/wps?service=wps&request=Execute&version=2.0.0&Identifier=wps_get_peilfilter_data&datainputs=peilfilterinfo={"peilfilterid":"HEG_02_W2404_01_GW","start_date":"2025-05-06","end_date":"2025-12-31","parameter":"Grondwaterstand"}
 # http://localhost:5000/wps?service=wps&request=Execute&version=2.0.0&Identifier=wps_get_peilfilter_data&datainputs=peilfilterinfo={"peilfilterid":"HEG_02_W2404_01_GW","start_date":"","end_date":"2025-12-31"}
 # http://localhost:5000/wps?service=wps&request=Execute&version=2.0.0&Identifier=wps_get_peilfilter_data&datainputs=peilfilterinfo={"peilfilterid":"HEG_02_W2404_01_GW","start_date":"2025-06-01","end_date":""}
 # https://nl2120.openearth.nl/wps?service=wps&request=Execute&version=2.0.0&Identifier=wps_get_peilfilter_data&datainputs=peilfilterinfo={"peilfilterid":436, "start_date":"2013-06-01","end_date":"2013-12-31"}
