@@ -96,16 +96,22 @@ def get_data(peilfilterid,start_date,end_date,parameter='Grondwaterstand'):
     strformat = '%Y-%m-%d' 
     if start_date == '':
         start_date = None
+    else:
+        sd = start_date
     if not start_date:
         start_date = '2025-01-01' # considered as start of the project
-    
+        sd = datetime.strptime(start_date, strformat)
+
     if end_date == '':
         end_date = None
+    else:
+        ed = end_date
     if not end_date:
         end_date = datetime.now().strftime(strformat)
+        ed = datetime.strptime(end_date, strformat)
 
-    sd = datetime.strptime(start_date, strformat)
-    ed = datetime.strptime(end_date, strformat)
+    
+
     logger.info('startdate: ', start_date)
     engine = create_connection_db()
     with engine.connect() as connection:
