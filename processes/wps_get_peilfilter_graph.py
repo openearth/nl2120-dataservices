@@ -38,6 +38,7 @@ from pywps import Process, LiteralInput, LiteralOutput, ComplexOutput, Format
 from .utils import get_graph
 import json
 import logging
+import pywps
 logger = logging.getLogger("PYWPS")
 
 class WpsGetPeilfilterGraph(Process):
@@ -76,6 +77,12 @@ class WpsGetPeilfilterGraph(Process):
                 identifier='peilfilter_graph',
                 title='Result JSON',
                 supported_formats=[Format('application/json')]
+            ),
+            ComplexOutput(
+                identifier='graph_reference',
+                title='Graph HTML Reference',
+                abstract='Reference URL to the generated interactive graph HTML.',
+                supported_formats=[Format('text/html')]
             ),
             LiteralOutput(
                 identifier='graph_url',
@@ -129,13 +136,17 @@ class WpsGetPeilfilterGraph(Process):
 
             response.outputs["graph_url"].data = graph_url
             if graph_url:
-                response.outputs["graph_link"].data = f'<a href="https://nl2120.openearth.nl{graph_url}" target="_blank">Open interactive graph</a>'
+                full_graph_url = _build_full_graph_url(graph_url)
+                response.outputs["graph_reference"].url = full_graph_url
+                response.outputs["graph_link"].data = f'<a href="{full_graph_url}" target="_blank">Open interactive graph</a>'
             else:
+                response.outputs["graph_reference"].data = "No graph URL available."
                 response.outputs["graph_link"].data = 'No graph URL available.'
         except Exception as e:
             res = { 'errMsg' : 'ERROR: {}'.format(e)}
             logger.info(res)
             response.outputs["peilfilter_graph"].data = "Something went very wrong, please check logfile"
+            response.outputs["graph_reference"].data = "No graph URL available."
             response.outputs["graph_url"].data = ""
             response.outputs["graph_link"].data = "No graph URL available."
         return response
@@ -143,6 +154,12 @@ class WpsGetPeilfilterGraph(Process):
 
 # Helpers
 from datetime import datetime, timezone
+
+def _build_full_graph_url(graph_url: str):
+    if not graph_url:
+        return ''
+    base_url = "https://nl2120.openearth.nl"
+    return f"{base_url}{graph_url}"
 
 def parse_iso8601_or_none(val: str):
     if not val:
