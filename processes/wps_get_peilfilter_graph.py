@@ -129,7 +129,7 @@ class WpsGetPeilfilterGraph(Process):
 
             response.outputs["graph_url"].data = graph_url
             if graph_url:
-                response.outputs["graph_link"].data = f'<a href="{graph_url}" target="_blank">Open interactive graph</a>'
+                response.outputs["graph_link"].data = f'<a href="https://nl2120.openearth.nl{graph_url}" target="_blank">Open interactive graph</a>'
             else:
                 response.outputs["graph_link"].data = 'No graph URL available.'
         except Exception as e:
