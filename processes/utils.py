@@ -29,6 +29,7 @@ import configparser
 import time
 from datetime import datetime
 import json
+import re
 from pathlib import Path
 from sqlalchemy import select, func
 from sqlalchemy import create_engine
@@ -83,7 +84,7 @@ def get_locations():
     return json.dumps(result)
 
 
-def get_data(peilfilterid,start_date,end_date,parameter='Grondwaterstand'):
+def get_data(peilfilterid,start_date,end_date,parameter='Grondwaterstand',graph=False):
     """Retrieves the data for specific peilfilter id
     Inputs:
         peilfilterid: Integer
@@ -123,15 +124,192 @@ def get_data(peilfilterid,start_date,end_date,parameter='Grondwaterstand'):
             result = 'no data found for specified period' 
         finally:
             logger.info('result of the function',result)
+    if graph:
+        #return json with datetime and stages for graphing
+        return result
     return json.dumps(result)
 
+def get_graph(peilfilterid,start_date,end_date,parameter='Grondwaterstand'):
+    """Retrieves and stores an interactive graph for a specific peilfilter.
+    Inputs:
+        peilfilterid: Integer
+        start_date  : startdate (text will be formatted to timestamp), can be empty string
+        end_date    : enddate (text will be formatted to timestamp), can be empty string
+    Returns:
+        JSON string containing graph metadata and URL
+    """
+    # Call function get_data with graph=True to retrieve data for graphing.
+    result = get_data(peilfilterid, start_date, end_date, parameter, graph=True)
+
+    if not isinstance(result, dict):
+        return json.dumps(
+            {
+                "status": "error",
+                "message": "No data returned for graph generation.",
+                "detail": result,
+            }
+        )
+
+    timeseries = result.get("timeseries", [])
+    if not isinstance(timeseries, list):
+        timeseries = []
+
+    x_values = []
+    y_values = []
+    for item in timeseries:
+        if not isinstance(item, dict):
+            continue
+        x_values.append(item.get("datetime"))
+        y_values.append(item.get("head"))
+
+    location_props = result.get("locationproperties", {}) or {}
+    parameter_props = result.get("parameterproperties", {}) or {}
+
+    graph_dir = service_path / "data" / "graphs"
+    graph_dir.mkdir(parents=True, exist_ok=True)
+
+    safe_location = re.sub(r"[^A-Za-z0-9_-]", "_", str(peilfilterid))
+    timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    filename = f"{safe_location}_{timestamp}.html"
+    filepath = graph_dir / filename
+
+    title = f"Groundwater timeseries - {peilfilterid}"
+    ylabel = f"{parameter_props.get('parameter', parameter)} ({parameter_props.get('unit', '-')})"
+    x_json = json.dumps(x_values, ensure_ascii=False)
+    y_json = json.dumps(y_values, ensure_ascii=False)
+    title_json = json.dumps(title, ensure_ascii=False)
+    y_label_json = json.dumps(ylabel, ensure_ascii=False)
+    location_json = json.dumps(location_props, ensure_ascii=False)
+    parameter_json = json.dumps(parameter_props, ensure_ascii=False)
+
+    html_content = f"""<!DOCTYPE html>
+<html lang=\"en\">
+<head>
+    <meta charset=\"utf-8\" />
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />
+    <title>{title}</title>
+    <script src=\"https://cdn.plot.ly/plotly-2.35.2.min.js\"></script>
+    <style>
+        :root {{
+            --bg: #f4f6f8;
+            --card: #ffffff;
+            --ink: #0e2a3a;
+            --line: #0077b6;
+            --grid: rgba(14, 42, 58, 0.12);
+        }}
+        body {{
+            margin: 0;
+            padding: 24px;
+            background: radial-gradient(circle at 20% 20%, #ffffff 0%, var(--bg) 75%);
+            color: var(--ink);
+            font-family: \"Segoe UI\", Tahoma, sans-serif;
+        }}
+        .wrap {{
+            max-width: 1100px;
+            margin: 0 auto;
+            background: var(--card);
+            border-radius: 14px;
+            box-shadow: 0 8px 30px rgba(14, 42, 58, 0.12);
+            padding: 20px;
+        }}
+        h1 {{
+            margin: 0 0 8px 0;
+            font-size: 24px;
+        }}
+        .meta {{
+            margin-bottom: 16px;
+            color: rgba(14, 42, 58, 0.8);
+            font-size: 14px;
+        }}
+        #chart {{
+            width: 100%;
+            height: 620px;
+        }}
+        .note {{
+            margin-top: 10px;
+            font-size: 13px;
+            color: rgba(14, 42, 58, 0.7);
+        }}
+    </style>
+</head>
+<body>
+    <div class=\"wrap\">
+        <h1 id=\"title\"></h1>
+        <div class=\"meta\" id=\"meta\"></div>
+        <div id=\"chart\"></div>
+        <div class=\"note\">Tip: use mouse wheel/drag to zoom and pan, double click to reset.</div>
+    </div>
+
+    <script>
+        const xValues = {x_json};
+        const yValues = {y_json};
+        const plotTitle = {title_json};
+        const yLabel = {y_label_json};
+        const locationProps = {location_json};
+        const parameterProps = {parameter_json};
+
+        document.getElementById('title').textContent = plotTitle;
+        document.getElementById('meta').textContent =
+            `Location: ${'{'}locationProps.locationid || '-'{'}'} | Parameter: ${'{'}parameterProps.parameter || '-'{'}'} ${'{'}parameterProps.unit ? '(' + parameterProps.unit + ')' : ''{'}'}`;
+
+        const trace = {{
+            x: xValues,
+            y: yValues,
+            mode: 'lines+markers',
+            name: parameterProps.parameter || 'Groundwaterstand',
+            line: {{ color: '#0077b6', width: 2 }},
+            marker: {{ size: 5, color: '#00a6fb' }},
+            hovertemplate: '%{{x}}<br>Head: %{{y:.3f}}<extra></extra>'
+        }};
+
+        const layout = {{
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            margin: {{ l: 70, r: 20, t: 20, b: 60 }},
+            xaxis: {{
+                title: 'Datetime',
+                gridcolor: 'rgba(14, 42, 58, 0.12)',
+                zeroline: false
+            }},
+            yaxis: {{
+                title: yLabel,
+                gridcolor: 'rgba(14, 42, 58, 0.12)',
+                zeroline: false
+            }}
+        }};
+
+        const config = {{
+            responsive: true,
+            displaylogo: false,
+            modeBarButtonsToRemove: ['select2d', 'lasso2d']
+        }};
+
+        Plotly.newPlot('chart', [trace], layout, config);
+    </script>
+</body>
+</html>
+"""
+
+    filepath.write_text(html_content, encoding="utf-8")
+    graph_url = f"/data/graphs/{filename}"
+    return json.dumps(
+        {
+            "status": "ok",
+            "graph_url": graph_url,
+            "graph_file": str(filepath),
+            "points": len(x_values),
+            "locationid": location_props.get("locationid", peilfilterid),
+            "parameter": parameter_props.get("parameter", parameter),
+            "unit": parameter_props.get("unit", None),
+        }
+    )
 
 def test_get_data():
     parameter='Grondwaterstand'
     dcttest={}
     dcttest["t1"] = ['HEG_01_W2404_01_SH',None,None]
     dcttest["t2"] = ['HEG_01_W2404_01_SH','2025-09-12','2025-12-12']
-    dcttest["t3"] = ['HEG_01_W2404_01_SH','2025-09-12',None]
+    dcttest["t3"] = ['HEG_01_W2404_01_SH','2026-01-01',None]
     dcttest["t4"] = ['HEG_01_W2404_01_SH',None,'2025-12-12']
 
     for t in dcttest.keys():

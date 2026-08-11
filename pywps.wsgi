@@ -33,6 +33,7 @@
 # base package
 import os
 import logging
+import mimetypes
 
 # imported packages
 import flask
@@ -45,11 +46,12 @@ from pywps.app.Service import Service
 #from processes.ultimate_question import UltimateQuestion
 from processes.wps_get_locations import WpsGetLocations
 from processes.wps_get_peilfilter_data import WpsGetPeilfilterData
+from processes.wps_get_peilfilter_graph import WpsGetPeilfilterGraph
 
 # TODO add the proces in the processes list
 processes = [
     #UltimateQuestion(),
-    WpsGetLocations(), WpsGetPeilfilterData()
+    WpsGetLocations(), WpsGetPeilfilterData(), WpsGetPeilfilterGraph()
 ]
 
 # Description used in template
@@ -86,12 +88,9 @@ def wps():
 def outputfile(filename):
     targetfile = os.path.join("data", filename)
     if os.path.isfile(targetfile):
-        file_ext = os.path.splitext(targetfile)[1]
         with open(targetfile, mode="rb") as f:
             file_bytes = f.read()
-        mime_type = None
-        if "xml" in file_ext:
-            mime_type = "text/xml"
+        mime_type = mimetypes.guess_type(targetfile)[0] or "application/octet-stream"
         return flask.Response(file_bytes, content_type=mime_type)
     else:
         flask.abort(404)

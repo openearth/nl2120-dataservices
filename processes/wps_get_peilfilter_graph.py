@@ -27,19 +27,20 @@
 # your own tools.
  
 # test and production requests
-# http://localhost:5000/wps?service=WPS&request=Execute&version=2.0.0&identifier=wps_get_peilfilter_data&datainputs=peilfilterid=HEG_02_W2404_01_GW;parameter=Grondwaterstand;start_date=2025-01-01T00%3A00%3A00Z;end_date=2026-01-01T00%3A00%3A00Z
-# http://localhost:5000/wps?service=WPS&request=Execute&version=2.0.0&identifier=wps_get_peilfilter_data&datainputs=peilfilterid=HEG_01_W2404_01_SH;parameter=Grondwaterstand;start_date=2025-01-01T00%3A00%3A00Z;end_date=
-# https://nl2120.openearth.nl/wps?service=wps&request=Execute&version=2.0.0&identifier=wps_get_peilfilter_data&datainputs=peilfilterid=HEG_02_W2404_01_GW;parameter=Grondwaterstand;start_date=2025-01-01T00%3A00%3A00Z;end_date=2026-01-01T00%3A00%3A00Z
+# http://localhost:5000/wps?service=WPS&request=Execute&version=2.0.0&identifier=wps_get_peilfilter_graph&datainputs=peilfilterid=HEG_02_W2404_01_GW;parameter=Grondwaterstand;start_date=2025-01-01T00%3A00%3A00Z;end_date=2026-01-01T00%3A00%3A00Z
+# http://localhost:5000/wps?service=WPS&request=Execute&version=2.0.0&identifier=wps_get_peilfilter_graph&datainputs=peilfilterid=HEG_01_W2404_01_SH;parameter=Grondwaterstand;start_date=2025-01-01T00%3A00%3A00Z;end_date=
+# https://nl2120.openearth.nl/wps?service=wps&request=Execute&version=2.0.0&identifier=wps_get_peilfilter_graph&datainputs=peilfilterid=HEG_02_W2404_01_GW;parameter=Grondwaterstand;start_date=2025-01-01T00%3A00%3A00Z;end_date=2026-01-01T00%3A00%3A00Z
 # 
-# https://nl2120.openearth.nl/wps?service=wps&request=Execute&version=2.0.0&identifier=wps_get_peilfilter_data&datainputs=peilfilterid=HEG_01_W2404_01_SH;parameter=Grondwaterstand;start_date=2025-01-01T00%3A00%3A00Z;end_date=
+# https://nl2120.openearth.nl/wps?service=wps&request=Execute&version=2.0.0&identifier=wps_get_peilfilter_graph&datainputs=peilfilterid=HEG_01_W2404_01_SH;parameter=Grondwaterstand;start_date=2025-01-01T00%3A00%3A00Z;end_date=
 
 
-from pywps import Process, LiteralInput, ComplexOutput, Format
-from .utils import get_data
+from pywps import Process, LiteralInput, LiteralOutput, ComplexOutput, Format
+from .utils import get_graph
+import json
 import logging
 logger = logging.getLogger("PYWPS")
 
-class WpsGetPeilfilterData(Process):
+class WpsGetPeilfilterGraph(Process):
     def __init__(self):
         inputs = [
             LiteralInput(
@@ -72,18 +73,30 @@ class WpsGetPeilfilterData(Process):
 
         outputs = [
             ComplexOutput(
-                identifier='peilfilter_data',
+                identifier='peilfilter_graph',
                 title='Result JSON',
                 supported_formats=[Format('application/json')]
+            ),
+            LiteralOutput(
+                identifier='graph_url',
+                title='Graph URL',
+                abstract='Direct URL to the generated interactive graph HTML in /data/graphs.',
+                data_type='string'
+            ),
+            LiteralOutput(
+                identifier='graph_link',
+                title='Graph Link (HTML)',
+                abstract='Clickable HTML anchor to the generated interactive graph.',
+                data_type='string'
             )
         ]
 
-        super(WpsGetPeilfilterData, self).__init__(
+        super(WpsGetPeilfilterGraph, self).__init__(
             self._handler,
-            identifier='wps_get_peilfilter_data',
+            identifier='wps_get_peilfilter_graph',
             version='1.0.0',
-            title='Groundwater timeseries',
-            abstract='Returns raw timeseries for peilfilters within a date range',
+            title='Groundwater timeseries graph',
+            abstract='Returns timeseries graph for peilfilters.',
             inputs=inputs,
             outputs=outputs
         )
@@ -103,12 +116,28 @@ class WpsGetPeilfilterData(Process):
             start_date = parse_iso8601_or_none(start_date_str)
             end_date   = parse_iso8601_or_none(end_date_str)
 
-            # ... call your database function/query using start_dt/end_dt (or None)
-            response.outputs["peilfilter_data"].data = get_data(peilfilterids[0],start_date,end_date,parameter)
+            # Generate graph file and expose URL outputs.
+            graph_result_json = get_graph(peilfilterids[0],start_date,end_date,parameter)
+            response.outputs["peilfilter_graph"].data = graph_result_json
+
+            graph_url = ''
+            try:
+                graph_result = json.loads(graph_result_json)
+                graph_url = graph_result.get('graph_url', '') if isinstance(graph_result, dict) else ''
+            except Exception:
+                graph_url = ''
+
+            response.outputs["graph_url"].data = graph_url
+            if graph_url:
+                response.outputs["graph_link"].data = f'<a href="{graph_url}" target="_blank">Open interactive graph</a>'
+            else:
+                response.outputs["graph_link"].data = 'No graph URL available.'
         except Exception as e:
             res = { 'errMsg' : 'ERROR: {}'.format(e)}
             logger.info(res)
-            response.outputs["peilfilter_data"].data = "Something went very wrong, please check logfile"
+            response.outputs["peilfilter_graph"].data = "Something went very wrong, please check logfile"
+            response.outputs["graph_url"].data = ""
+            response.outputs["graph_link"].data = "No graph URL available."
         return response
 
 
