@@ -207,10 +207,13 @@ def get_graph(peilfilterid,start_date,end_date,parameter='Grondwaterstand',local
     y_json = json.dumps(y_values, ensure_ascii=False)
     title_json = json.dumps(title, ensure_ascii=False)
     y_label_json = json.dumps(ylabel, ensure_ascii=False)
-    parameter_name_json = json.dumps(parameter_name, ensure_ascii=False)
     unit_description_json = json.dumps(unit_description, ensure_ascii=False)
     location_json = json.dumps(location_props, ensure_ascii=False)
     parameter_json = json.dumps(parameter_props, ensure_ascii=False)
+    hover_template_json = json.dumps(
+        f"%{{x}}<br>{parameter_name}: %{{y:.3f}}<extra></extra>",
+        ensure_ascii=False,
+    )
 
     html_content = f"""<!DOCTYPE html>
 <html lang=\"en\">
@@ -275,8 +278,8 @@ def get_graph(peilfilterid,start_date,end_date,parameter='Grondwaterstand',local
         const yValues = {y_json};
         const plotTitle = {title_json};
         const yLabel = {y_label_json};
-        const parameterName = {parameter_name_json};
         const unitDescription = {unit_description_json};
+        const hoverTemplate = {hover_template_json};
         const locationProps = {location_json};
         const parameterProps = {parameter_json};
 
@@ -291,7 +294,7 @@ def get_graph(peilfilterid,start_date,end_date,parameter='Grondwaterstand',local
             name: parameterProps.parameter || 'Groundwaterstand',
             line: {{ color: '#0077b6', width: 2 }},
             marker: {{ size: 5, color: '#00a6fb' }},
-            hovertemplate: '%{{x}}<br>${'{'}parameterName{'}'}: %{{y:.3f}}<extra></extra>'
+            hovertemplate: hoverTemplate
         }};
 
         const layout = {{
