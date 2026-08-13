@@ -200,12 +200,14 @@ def get_graph(peilfilterid,start_date,end_date,parameter='Grondwaterstand',local
     filepath = graph_dir / filename
 
     title = f"Groundwater timeseries - {peilfilterid}"
+    parameter_name = parameter_props.get("parameter") or parameter
     unit_description = parameter_props.get("unitdescription") or parameter_props.get("unit") or "-"
-    ylabel = f"{parameter_props.get('parameter', parameter)} ({unit_description})"
+    ylabel = f"{parameter_name} ({unit_description})"
     x_json = json.dumps(x_values, ensure_ascii=False)
     y_json = json.dumps(y_values, ensure_ascii=False)
     title_json = json.dumps(title, ensure_ascii=False)
     y_label_json = json.dumps(ylabel, ensure_ascii=False)
+    parameter_name_json = json.dumps(parameter_name, ensure_ascii=False)
     unit_description_json = json.dumps(unit_description, ensure_ascii=False)
     location_json = json.dumps(location_props, ensure_ascii=False)
     parameter_json = json.dumps(parameter_props, ensure_ascii=False)
@@ -273,6 +275,7 @@ def get_graph(peilfilterid,start_date,end_date,parameter='Grondwaterstand',local
         const yValues = {y_json};
         const plotTitle = {title_json};
         const yLabel = {y_label_json};
+        const parameterName = {parameter_name_json};
         const unitDescription = {unit_description_json};
         const locationProps = {location_json};
         const parameterProps = {parameter_json};
@@ -288,7 +291,7 @@ def get_graph(peilfilterid,start_date,end_date,parameter='Grondwaterstand',local
             name: parameterProps.parameter || 'Groundwaterstand',
             line: {{ color: '#0077b6', width: 2 }},
             marker: {{ size: 5, color: '#00a6fb' }},
-            hovertemplate: '%{{x}}<br>Head: %{{y:.3f}}<extra></extra>'
+            hovertemplate: '%{{x}}<br>${'{'}parameterName{'}'}: %{{y:.3f}}<extra></extra>'
         }};
 
         const layout = {{
