@@ -28,6 +28,7 @@
 import configparser
 import time
 from datetime import datetime
+from functools import lru_cache
 import json
 import re
 from pathlib import Path
@@ -49,6 +50,7 @@ def read_config(file_name="configuration.txt"):
     
     return cf
 
+@lru_cache(maxsize=1)
 def create_connection_db():
     """Creates a connection to the database
     Returns:
@@ -62,7 +64,12 @@ def create_connection_db():
     port = cf.get("PostGIS", "PORT")
     database = cf.get("PostGIS", "DATABASE")
     try:
-        engine = create_engine(f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{database}")
+        engine = create_engine(
+            f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{database}",
+            pool_size=1,
+            max_overflow=0,
+            pool_pre_ping=True,
+        )
         result = 'connection to database setup succesful'
     except Exception as e:
         engine = None
@@ -361,7 +368,7 @@ def createstaticgraph():
                 if isinstance(parameter_info, dict)
                 else None
             )
-            if not parameter_name or parameter_name == "Temperatuur intern":
+            if not parameter_name:
                 skipped += 1
                 continue
 
