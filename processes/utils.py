@@ -71,6 +71,19 @@ def create_connection_db():
         logger.info('connection message', result)
     return engine
 
+def get_parameters():
+    """Retrieves the locations from the database
+    Returns:
+        json of locations
+    """
+    engine = create_connection_db()
+    with engine.connect() as connection:
+        #query = select(func.gws.get_locations_geojson())
+        query = select(func.timeseries.get_parameters())  # this yields list of locatie_id and peilfilter_id
+        result = connection.execute(query).fetchone()[0]
+        logger.info('result of the function',result)
+    return result
+
 def get_locations(local=False):
     """Retrieves the locations from the database
     Returns:
@@ -85,7 +98,6 @@ def get_locations(local=False):
     if local:
         return result
     return json.dumps(result)
-
 
 def get_data(peilfilterid,start_date,end_date,parameter='Grondwaterstand',graph=False):
     """Retrieves the data for specific peilfilter id
@@ -172,19 +184,22 @@ def get_graph(peilfilterid,start_date,end_date,parameter='Grondwaterstand',local
     graph_dir.mkdir(parents=True, exist_ok=True)
 
     safe_location = re.sub(r"[^A-Za-z0-9_-]", "_", str(peilfilterid))
+    safe_parameter = re.sub(r"[^A-Za-z0-9_-]", "_", str(parameter))
     if local:
-        filename = f"{safe_location}.html"
+        filename = f"{safe_location}_{safe_parameter}.html"
     else:
         timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
         filename = f"{safe_location}_{timestamp}.html"
     filepath = graph_dir / filename
 
     title = f"Groundwater timeseries - {peilfilterid}"
-    ylabel = f"{parameter_props.get('parameter', parameter)} ({parameter_props.get('unit', '-')})"
+    unit_description = parameter_props.get("unitdescription") or parameter_props.get("unit") or "-"
+    ylabel = f"{parameter_props.get('parameter', parameter)} ({unit_description})"
     x_json = json.dumps(x_values, ensure_ascii=False)
     y_json = json.dumps(y_values, ensure_ascii=False)
     title_json = json.dumps(title, ensure_ascii=False)
     y_label_json = json.dumps(ylabel, ensure_ascii=False)
+    unit_description_json = json.dumps(unit_description, ensure_ascii=False)
     location_json = json.dumps(location_props, ensure_ascii=False)
     parameter_json = json.dumps(parameter_props, ensure_ascii=False)
 
@@ -251,12 +266,13 @@ def get_graph(peilfilterid,start_date,end_date,parameter='Grondwaterstand',local
         const yValues = {y_json};
         const plotTitle = {title_json};
         const yLabel = {y_label_json};
+        const unitDescription = {unit_description_json};
         const locationProps = {location_json};
         const parameterProps = {parameter_json};
 
         document.getElementById('title').textContent = plotTitle;
         document.getElementById('meta').textContent =
-            `Location: ${'{'}locationProps.locationid || '-'{'}'} | Parameter: ${'{'}parameterProps.parameter || '-'{'}'} ${'{'}parameterProps.unit ? '(' + parameterProps.unit + ')' : ''{'}'}`;
+            `Location: ${'{'}locationProps.locationid || '-'{'}'} | Parameter: ${'{'}parameterProps.parameter || '-'{'}'} (${'{'}unitDescription{'}'})`;
 
         const trace = {{
             x: xValues,
@@ -316,13 +332,67 @@ def createstaticgraph():
     of the location and can be called from tslink column in the data from the viewer
     Calls get_locations and for each location calles get_graph
     """
-    locations = get_locations(local=True)
-    features = locations.get("features", [])
-    for loc in features:
-        description = loc.get("properties", {}).get("description", "")
-        if 'stijghoogte' in description.lower() or 'grondwaterstand' in description.lower():
-            name = loc.get("properties", {}).get("name", "unknown")
-            get_graph(name, start_date='',end_date='',parameter='Grondwaterstand',local=True)
+    locations = get_locations(local=True) or {}
+    features = locations.get("features", []) if isinstance(locations, dict) else []
+    paramresult = get_parameters() or {}
+    parameters = (
+        paramresult.get("parameterproperties", [])
+        if isinstance(paramresult, dict)
+        else []
+    )
+    if isinstance(parameters, dict):
+        parameters = [parameters]
+    elif not isinstance(parameters, list):
+        parameters = []
+
+    generated = 0
+    failed = 0
+    skipped = 0
+    for location in features:
+        properties = location.get("properties", {}) if isinstance(location, dict) else {}
+        location_name = properties.get("name") if isinstance(properties, dict) else None
+        if not location_name:
+            skipped += 1
+            continue
+
+        for parameter_info in parameters:
+            parameter_name = (
+                parameter_info.get("parameter")
+                if isinstance(parameter_info, dict)
+                else None
+            )
+            if not parameter_name or parameter_name == "Temperatuur intern":
+                skipped += 1
+                continue
+
+            try:
+                result = get_graph(
+                    location_name,
+                    start_date="",
+                    end_date="",
+                    parameter=parameter_name,
+                    local=True,
+                )
+                result_data = json.loads(result) if isinstance(result, str) else result
+                if not isinstance(result_data, dict) or result_data.get("status") != "ok":
+                    failed += 1
+                    logger.error(
+                        "Static graph generation failed for %s (%s): %s",
+                        location_name,
+                        parameter_name,
+                        result_data,
+                    )
+                    continue
+                generated += 1
+            except Exception:
+                failed += 1
+                logger.exception(
+                    "Static graph generation raised an exception for %s (%s)",
+                    location_name,
+                    parameter_name,
+                )
+
+    return {"generated": generated, "failed": failed, "skipped": skipped}
 
 def test_get_data():
     parameter='Grondwaterstand'
