@@ -55,6 +55,7 @@ def create_connection_db():
         connection object
     """
     cf = read_config()
+    print(cf)
     user = cf.get("PostGIS", "USER")
     password = cf.get("PostGIS", "PASSWORD")
     host = cf.get("PostGIS", "HOST")
@@ -70,7 +71,7 @@ def create_connection_db():
         logger.info('connection message', result)
     return engine
 
-def get_locations():
+def get_locations(local=False):
     """Retrieves the locations from the database
     Returns:
         json of locations
@@ -81,6 +82,8 @@ def get_locations():
         query = select(func.timeseries.gwslocations())  # this yields list of locatie_id and peilfilter_id
         result = connection.execute(query).fetchone()[0]
         logger.info('result of the function',result)
+    if local:
+        return result
     return json.dumps(result)
 
 
@@ -129,7 +132,7 @@ def get_data(peilfilterid,start_date,end_date,parameter='Grondwaterstand',graph=
         return result
     return json.dumps(result)
 
-def get_graph(peilfilterid,start_date,end_date,parameter='Grondwaterstand'):
+def get_graph(peilfilterid,start_date,end_date,parameter='Grondwaterstand',local=False):
     """Retrieves and stores an interactive graph for a specific peilfilter.
     Inputs:
         peilfilterid: Integer
@@ -169,8 +172,11 @@ def get_graph(peilfilterid,start_date,end_date,parameter='Grondwaterstand'):
     graph_dir.mkdir(parents=True, exist_ok=True)
 
     safe_location = re.sub(r"[^A-Za-z0-9_-]", "_", str(peilfilterid))
-    timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
-    filename = f"{safe_location}_{timestamp}.html"
+    if local:
+        filename = f"{safe_location}.html"
+    else:
+        timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+        filename = f"{safe_location}_{timestamp}.html"
     filepath = graph_dir / filename
 
     title = f"Groundwater timeseries - {peilfilterid}"
@@ -303,6 +309,20 @@ def get_graph(peilfilterid,start_date,end_date,parameter='Grondwaterstand'):
             "unit": parameter_props.get("unit", None),
         }
     )
+
+def createstaticgraph():
+    """
+    Function to create static (daily) graphs that are store under the name
+    of the location and can be called from tslink column in the data from the viewer
+    Calls get_locations and for each location calles get_graph
+    """
+    locations = get_locations(local=True)
+    features = locations.get("features", [])
+    for loc in features:
+        description = loc.get("properties", {}).get("description", "")
+        if 'stijghoogte' in description.lower() or 'grondwaterstand' in description.lower():
+            name = loc.get("properties", {}).get("name", "unknown")
+            get_graph(name, start_date='',end_date='',parameter='Grondwaterstand',local=True)
 
 def test_get_data():
     parameter='Grondwaterstand'
